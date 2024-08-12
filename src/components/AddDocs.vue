@@ -8,12 +8,12 @@ const file = ref(null);
 const isUploading = ref(false);
 
 const getEmbedding = async (text) => {
-  const response = await axios.post('http://localhost:3000/api/openai/embed', { text });
+  const response = await axios.post('https://linked-api.vercel.app/api/openai/embed', { text });
   return response.data.embedding;
 };
 
 const sendToPinecone = async (content, embedding) => {
-  const response = await axios.post('http://localhost:3000/api/pinecone/upsert', {
+  const response = await axios.post('https://linked-api.vercel.app/api/pinecone/upsert', {
     vectors: [
       {
         id: Date.now().toString(),
@@ -28,7 +28,7 @@ const sendToPinecone = async (content, embedding) => {
 const transcribePDF = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
-  const response = await axios.post('http://localhost:3000/api/transcribe', formData, {
+  const response = await axios.post('https://linked-api.vercel.app/api/transcribe', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }

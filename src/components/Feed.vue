@@ -99,7 +99,7 @@ const generateSuggestions = async () => {
   error.value = null;
 
   try {
-    const eventSource = new EventSource(`http://localhost:3000/api/gpt/suggestions/${selectedUserId.value}`);
+    const eventSource = new EventSource(`https://linked-api.vercel.app/api/gpt/suggestions/${selectedUserId.value}`);
 
     eventSource.onmessage = (event) => {
       if (event.data === '[DONE]') {
@@ -149,7 +149,7 @@ const fetchUserProfile = async () => {
   }
 
   try {
-    const response = await axios.get(`http://localhost:3000/api/profile/${selectedUserId.value}`);
+    const response = await axios.get(`https://linked-api.vercel.app/api/profile/${selectedUserId.value}`);
     userProfile.value = response.data;
   } catch (err) {
     console.error('Error fetching user profile:', err);
@@ -159,7 +159,7 @@ const fetchUserProfile = async () => {
 
 const fetchUsers = async () => {
   try {
-    const response = await axios.get('http://localhost:3000/api/users');
+    const response = await axios.get('https://linked-api.vercel.app/api/users');
     users.value = response.data;
   } catch (err) {
     console.error('Error fetching users:', err);
