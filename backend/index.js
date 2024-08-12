@@ -313,4 +313,8 @@ app.get('/api/profile/:userId', async (req, res) => {
   }
 });
 
+app.get('/', (req, res) => {
+  res.send('Working');
+});
+
 export default app;
