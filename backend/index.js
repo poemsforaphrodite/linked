@@ -13,23 +13,26 @@ import mongoose from 'mongoose';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-dotenv.config({ path: '../.env' });
+dotenv.config({ path: './.env' });
+//console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY);
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 // Add this line to increase the timeout
-app.use((req, res, next) => {
-  res.setTimeout(300000); // 5 minutes
-  next();
-});
+// app.use((req, res, next) => {
+//   res.setTimeout(300000); // 5 minutes
+//   next();
+// });
 
 const PINECONE_API_URL = process.env.PINECONE_API_URL;
 const PINECONE_API_KEY = process.env.PINECONE_API_KEY;
 const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME;
 
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB connection error:', err));
 
 const ProfileSchema = new mongoose.Schema({
   name: String,
@@ -160,7 +163,7 @@ app.get('/api/gpt/suggestions/:userId', async (req, res) => {
         const relevantDocs = await queryPinecone(queryVector);
         const prompt = createPrompt(category, relevantDocs, userContent, userGoal);
         
-        for (let i = 0; i < 1; i++) {
+        for (let i = 0; i < 3; i++) {
           try {
             const stream = await openai.chat.completions.create({
               model: "gpt-4o-mini",
@@ -297,11 +300,13 @@ app.use('/api', router);
 // Fetch all users
 app.get('/api/users', async (req, res) => {
   try {
+    console.log('Attempting to fetch users');
     const users = await Profile.find({}, '_id name');
+    console.log('Users fetched successfully:', users);
     res.json(users);
   } catch (error) {
     console.error('Error fetching users:', error);
-    res.status(500).json({ error: 'Error fetching users' });
+    res.status(500).json({ error: 'Error fetching users', details: error.message });
   }
 });
 
@@ -321,6 +326,11 @@ app.get('/api/profile/:userId', async (req, res) => {
 
 app.get('/', (req, res) => {
   res.send('Working');
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
 
 export default app;

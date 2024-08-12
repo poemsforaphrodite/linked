@@ -63,7 +63,7 @@
   
   const saveProfile = async () => {
     try {
-      const response = await axios.post('https://linked-api.vercel.app/api/profile', profile.value);
+      const response = await axios.post('/api/profile', profile.value);
       console.log('Profile and content saved:', response.data);
       // You might want to emit an event here to notify the parent component
     } catch (error) {
