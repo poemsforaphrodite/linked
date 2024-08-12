@@ -160,7 +160,7 @@ app.get('/api/gpt/suggestions/:userId', async (req, res) => {
         const relevantDocs = await queryPinecone(queryVector);
         const prompt = createPrompt(category, relevantDocs, userContent, userGoal);
         
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 1; i++) {
           try {
             const stream = await openai.chat.completions.create({
               model: "gpt-4o-mini",
