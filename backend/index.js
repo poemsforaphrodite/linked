@@ -19,6 +19,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Add this line to increase the timeout
+app.use((req, res, next) => {
+  res.setTimeout(300000); // 5 minutes
+  next();
+});
+
 const PINECONE_API_URL = process.env.PINECONE_API_URL;
 const PINECONE_API_KEY = process.env.PINECONE_API_KEY;
 const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME;
