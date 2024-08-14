@@ -59,7 +59,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import api from '../api';
 
 const loading = ref(false);
 const suggestions = ref({});
@@ -109,7 +109,7 @@ const startGeneratingSuggestions = async () => {
 
 const generateNextSuggestion = async () => {
   try {
-    const response = await axios.get(`/api/gpt/suggestions/${selectedUserId.value}/${currentCategory.value}/${currentIndex.value}`);
+    const response = await api.get(`/gpt/suggestions/${selectedUserId.value}/${currentCategory.value}/${currentIndex.value}`);
     const { category, index, post } = response.data;
     suggestions.value[category].push(post);
 
@@ -140,7 +140,7 @@ const fetchUserProfile = async () => {
   }
 
   try {
-    const response = await axios.get(`/api/profile/${selectedUserId.value}`);
+    const response = await api.get(`/profile/${selectedUserId.value}`);
     userProfile.value = response.data;
   } catch (err) {
     console.error('Error fetching user profile:', err);
@@ -150,7 +150,7 @@ const fetchUserProfile = async () => {
 
 const fetchUsers = async () => {
   try {
-    const response = await axios.get('/api/users');
+    const response = await api.get('/users');
     users.value = response.data;
   } catch (err) {
     console.error('Error fetching users:', err);
