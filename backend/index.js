@@ -173,7 +173,7 @@ Call to Action: [call to action]`;
 async function generateSinglePost(prompt) {
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "You are a professional LinkedIn content creator." },
         { role: "user", content: prompt }
