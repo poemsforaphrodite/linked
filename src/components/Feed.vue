@@ -12,7 +12,7 @@
       </select>
     </div>
 
-    <button @click="generateSuggestions" :disabled="loading || !isContentReady || !selectedUserId" class="generate-button">
+    <button @click="startGeneratingSuggestions" :disabled="loading || !isContentReady || !selectedUserId" class="generate-button">
       <i class="fas fa-sync-alt"></i> Generate Suggestions
     </button>
     <div v-if="!selectedUserId" class="warning">
@@ -29,9 +29,9 @@
       {{ error }}
     </div>
     <div class="suggestions-container">
-      <div v-for="(posts, category) in suggestions" :key="category" class="category-column">
+      <div v-for="category in categories" :key="category" class="category-column">
         <h2>{{ formatCategoryTitle(category) }}</h2>
-        <div v-for="(post, index) in posts" :key="index" class="linkedin-post">
+        <div v-for="(post, index) in suggestions[category]" :key="index" class="linkedin-post">
           <div class="post-header">
             <div class="avatar"></div>
             <div class="user-info">
@@ -83,7 +83,11 @@ const formatCategoryTitle = (category) => {
     .replace(/^./, (str) => str.toUpperCase());
 };
 
-const generateSuggestions = async () => {
+const categories = ['plannedContent', 'reactiveContent', 'companyContent'];
+const currentCategory = ref('');
+const currentIndex = ref(0);
+
+const startGeneratingSuggestions = async () => {
   if (!selectedUserId.value) {
     error.value = "Please select a user before generating suggestions.";
     return;
@@ -95,48 +99,35 @@ const generateSuggestions = async () => {
   }
 
   loading.value = true;
-  suggestions.value = {};
+  suggestions.value = { plannedContent: [], reactiveContent: [], companyContent: [] };
   error.value = null;
+  currentCategory.value = categories[0];
+  currentIndex.value = 0;
 
+  await generateNextSuggestion();
+};
+
+const generateNextSuggestion = async () => {
   try {
-    const eventSource = new EventSource(`/api/gpt/suggestions/${selectedUserId.value}`);
+    const response = await axios.get(`/api/gpt/suggestions/${selectedUserId.value}/${currentCategory.value}/${currentIndex.value}`);
+    const { category, index, post } = response.data;
+    suggestions.value[category].push(post);
 
-    eventSource.onmessage = (event) => {
-      if (event.data === '[DONE]') {
-        eventSource.close();
+    currentIndex.value++;
+    if (currentIndex.value >= 3) {
+      currentIndex.value = 0;
+      const nextCategoryIndex = categories.indexOf(currentCategory.value) + 1;
+      if (nextCategoryIndex < categories.length) {
+        currentCategory.value = categories[nextCategoryIndex];
+        await generateNextSuggestion();
+      } else {
         loading.value = false;
-        return;
       }
-
-      const data = JSON.parse(event.data);
-      if (data.error) {
-        error.value = data.error;
-        eventSource.close();
-        loading.value = false;
-        return;
-      }
-
-      if (data.warning) {
-        console.warn(data.warning);
-        return;
-      }
-
-      Object.entries(data).forEach(([category, post]) => {
-        if (!suggestions.value[category]) {
-          suggestions.value[category] = [];
-        }
-        suggestions.value[category].push(post);
-      });
-    };
-
-    eventSource.onerror = (err) => {
-      console.error('EventSource failed:', err);
-      error.value = "An error occurred while generating suggestions. Please try again.";
-      eventSource.close();
-      loading.value = false;
-    };
+    } else {
+      await generateNextSuggestion();
+    }
   } catch (err) {
-    console.error('Error generating suggestions:', err);
+    console.error('Error generating suggestion:', err);
     error.value = "An error occurred while generating suggestions. Please try again.";
     loading.value = false;
   }

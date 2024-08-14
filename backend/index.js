@@ -21,10 +21,10 @@ app.use(cors());
 app.use(express.json());
 
 // Add this line to increase the timeout
-// app.use((req, res, next) => {
-//   res.setTimeout(300000); // 5 minutes
-//   next();
-// });
+app.use((req, res, next) => {
+  res.setTimeout(300000); // 5 minutes
+  next();
+});
 
 const PINECONE_API_URL = process.env.PINECONE_API_URL;
 const PINECONE_API_KEY = process.env.PINECONE_API_KEY;
@@ -134,148 +134,76 @@ const SuggestionsResponseSchema = z.object({
   companyContent: z.array(LinkedInPostSchema)
 });
 
-app.get('/api/gpt/suggestions/:userId', async (req, res) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-
+app.get('/api/gpt/suggestions/:userId/:category/:index', async (req, res) => {
   try {
-    const user = await Profile.findById(req.params.userId);
+    const { userId, category, index } = req.params;
+    const user = await Profile.findById(userId);
     if (!user) {
-      res.write(`data: ${JSON.stringify({ error: 'User profile not found' })}\n\n`);
-      res.end();
-      return;
+      return res.status(404).json({ error: 'User profile not found' });
     }
 
     const userContent = user.content;
     const userGoal = user.goal;
-    const categories = ['plannedContent', 'reactiveContent', 'companyContent'];
 
-    for (const category of categories) {
-      const categoryContent = userContent[category] || '';
-      if (!categoryContent.trim()) {
-        res.write(`data: ${JSON.stringify({ warning: `Skipping ${category} due to empty content` })}\n\n`);
-        continue;
-      }
+    const prompt = generatePromptForCategory(category, userGoal, userContent[category]);
+    const post = await generateSinglePost(prompt);
 
-      const queryVector = await getEmbedding(categoryContent);
-      if (queryVector) {
-        const relevantDocs = await queryPinecone(queryVector);
-        const prompt = createPrompt(category, relevantDocs, userContent, userGoal);
-        
-        for (let i = 0; i < 3; i++) {
-          try {
-            const stream = await openai.chat.completions.create({
-              model: "gpt-4o-mini",
-              messages: [
-                { role: "system", content: "You are a professional LinkedIn content creator." },
-                { role: "user", content: prompt }
-              ],
-              functions: [
-                {
-                  name: "generate_linkedin_post",
-                  description: "Generate a LinkedIn post based on the given category and guidelines",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      content: { type: "string" },
-                      hashtags: { type: "array", items: { type: "string" } },
-                      callToAction: { type: "string" }
-                    },
-                    required: ["content", "hashtags", "callToAction"]
-                  }
-                }
-              ],
-              function_call: { name: "generate_linkedin_post" },
-              stream: true,
-            });
-
-            let postData = '';
-
-            for await (const chunk of stream) {
-              if (chunk.choices[0]?.delta?.function_call?.arguments) {
-                postData += chunk.choices[0].delta.function_call.arguments;
-              }
-            }
-
-            if (postData) {
-              try {
-                const post = JSON.parse(postData);
-                res.write(`data: ${JSON.stringify({ [category]: post })}\n\n`);
-              } catch (jsonError) {
-                console.error('Error parsing JSON:', jsonError);
-                console.error('Raw postData:', postData);
-                res.write(`data: ${JSON.stringify({ error: 'Error parsing response', category })}\n\n`);
-              }
-            }
-          } catch (streamError) {
-            console.error('Error in stream processing:', streamError);
-            res.write(`data: ${JSON.stringify({ error: 'Error processing stream', category })}\n\n`);
-          }
-        }
-      } else {
-        res.write(`data: ${JSON.stringify({ warning: `Skipping ${category} due to embedding error` })}\n\n`);
-        continue;
-      }
-    }
-
-    res.write('data: [DONE]\n\n');
-    res.end();
+    res.json({ category, index, post });
   } catch (error) {
-    console.error('Error generating suggestions:', error);
-    res.write(`data: ${JSON.stringify({ error: 'Error generating suggestions' })}\n\n`);
-    res.end();
+    console.error('Error generating suggestion:', error);
+    res.status(500).json({ error: 'Error generating suggestion' });
   }
 });
 
-async function getEmbedding(text) {
-  if (!text || text.trim() === '') {
-    console.warn('Empty or undefined text passed to getEmbedding');
+function generatePromptForCategory(category, userGoal, categoryContent) {
+  return `Generate a LinkedIn post based on the following user input, goal, and guidelines:
+
+User Goal: ${userGoal}
+
+${formatCategoryTitle(category)}:
+${categoryContent || ''}
+
+Generate a single post that includes content, 2-3 relevant hashtags, and a call to action. Format the response as follows:
+
+Content: [post content]
+Hashtags: [hashtag1, hashtag2, hashtag3]
+Call to Action: [call to action]`;
+}
+
+async function generateSinglePost(prompt) {
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: "You are a professional LinkedIn content creator." },
+        { role: "user", content: prompt }
+      ],
+    });
+
+    const response = completion.choices[0].message.content;
+    return processPostResponse(response);
+  } catch (error) {
+    console.error('Error generating single post:', error);
     return null;
   }
-  const response = await openai.embeddings.create({
-    model: "text-embedding-ada-002",
-    input: text,
-  });
-  return response.data[0].embedding;
 }
 
-async function queryPinecone(vector) {
-  const response = await axios.post(`${PINECONE_API_URL}/query`, {
-    vector,
-    topK: 3,
-    includeMetadata: true
-  }, {
-    headers: {
-      'Api-Key': PINECONE_API_KEY,
-      'Content-Type': 'application/json'
-    }
-  });
-  return response.data.matches.map(match => match.metadata.text);
+function processPostResponse(response) {
+  const contentMatch = response.match(/Content:\s*(.*?)(?=\n\s*Hashtags:)/s);
+  const hashtagsMatch = response.match(/Hashtags:\s*(.*?)(?=\n\s*Call to Action:)/);
+  const ctaMatch = response.match(/Call to Action:\s*(.*?)(?=\n|$)/);
+
+  return {
+    content: contentMatch ? contentMatch[1].trim() : '',
+    hashtags: hashtagsMatch ? hashtagsMatch[1].split(',').map(tag => tag.trim().replace('#', '')) : [],
+    callToAction: ctaMatch ? ctaMatch[1].trim() : ''
+  };
 }
 
-function createPrompt(category, docs, userContent, userGoal) {
-  let categoryContent = '';
-  if (category === 'plannedContent') {
-    categoryContent = userContent.plannedContent;
-  } else if (category === 'reactiveContent') {
-    categoryContent = userContent.reactiveContent;
-  } else if (category === 'companyContent') {
-    categoryContent = userContent.companyContent;
-  }
-
-  return `Generate a LinkedIn post for the category "${category}" based on the following user input, goal, and guidelines:
-
-User Input:
-${categoryContent}
-
-User Goal:
-${userGoal}
-
-Guidelines:
-${docs.join('\n\n')}
-
-The post should be engaging, professional, and follow LinkedIn best practices. Include relevant hashtags and a call to action. Incorporate the user's input and goal where appropriate.`;
+function formatCategoryTitle(category) {
+  return category
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (str) => str.toUpperCase());
 }
 
 const router = express.Router();
