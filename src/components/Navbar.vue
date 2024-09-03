@@ -1,51 +1,109 @@
 <template>
-    <nav class="navbar">
+  <nav v-if="!isAuthPage" class="navbar">
+    <div class="navbar-container">
       <div class="navbar-brand">Content Strategy AI</div>
       <ul class="navbar-menu">
-        <li><router-link to="/">Home</router-link></li>
-        <li><router-link to="/feed">Feed</router-link></li>
-        <li><router-link to="/profile">Profile & Content</router-link></li>
-        <li><router-link to="/add-docs">Add Docs</router-link></li>
+        <li><router-link to="/feed" class="nav-link">Feed</router-link></li>
+        <li><router-link to="/profile" class="nav-link">Profile & Content</router-link></li>
+        <li><router-link to="/add-docs" class="nav-link">Add Docs</router-link></li>
+        <li><button @click="logout" class="nav-link logout-button">Logout</button></li>
       </ul>
-    </nav>
-  </template>
-  
-  <script setup>
-  // No script needed for this simple navbar
-  </script>
-  
-  <style scoped>
-  .navbar {
-    background-color: #333;
-    color: white;
-    padding: 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    </div>
+  </nav>
+</template>
+
+<script setup>
+import { useRouter, useRoute } from 'vue-router';
+import { computed } from 'vue';
+
+const router = useRouter();
+const route = useRoute();
+
+const isAuthPage = computed(() => {
+  return route.path === '/login' || route.path === '/signup';
+});
+
+const logout = () => {
+  localStorage.removeItem('token');
+  router.push('/login');
+};
+</script>
+
+<style scoped>
+.navbar {
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  padding: 0.5rem 0;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
+
+.navbar-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1rem;
+}
+
+.navbar-brand {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #0077B5;
+}
+
+.navbar-menu {
+  list-style-type: none;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-link {
+  color: #666;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: background-color 0.3s, color 0.3s;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.nav-link:hover,
+.nav-link.router-link-active {
+  background-color: #f3f6f8;
+  color: #0077B5;
+}
+
+.logout-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  font-family: inherit;
+}
+
+@media (max-width: 768px) {
+  .navbar-container {
+    flex-direction: column;
+    align-items: flex-start;
   }
-  
-  .navbar-brand {
-    font-size: 1.5rem;
-    font-weight: bold;
-  }
-  
+
   .navbar-menu {
-    list-style-type: none;
-    display: flex;
-    gap: 1rem;
-    margin: 0;
-    padding: 0;
+    margin-top: 1rem;
+    flex-direction: column;
+    width: 100%;
   }
-  
-  .navbar-menu li a {
-    color: white;
-    text-decoration: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
-    transition: background-color 0.3s;
+
+  .nav-link,
+  .logout-button {
+    display: block;
+    width: 100%;
+    text-align: left;
   }
-  
-  .navbar-menu li a:hover {
-    background-color: #555;
-  }
-  </style>
+}
+</style>
