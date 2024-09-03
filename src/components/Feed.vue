@@ -39,13 +39,13 @@
               <p>Your Title • 1d</p>
             </div>
           </div>
-          <p class="post-content">{{ post.content }}</p>
-          <div class="post-hashtags">
+          <p v-if="post" class="post-content">{{ post.content }}</p>
+          <div v-if="post" class="post-hashtags">
             <span v-for="(hashtag, hIndex) in post.hashtags" :key="hIndex" class="hashtag">
               #{{ hashtag }}
             </span>
           </div>
-          <p class="post-cta">{{ post.callToAction }}</p>
+          <p v-if="post" class="post-cta">{{ post.callToAction }}</p>
           <div class="post-actions">
             <button class="action-button"><i class="far fa-thumbs-up"></i> Like</button>
             <button class="action-button"><i class="far fa-comment"></i> Comment</button>
@@ -111,7 +111,14 @@ const generateNextSuggestion = async () => {
   try {
     const response = await api.get(`/gpt/suggestions/${selectedUserId.value}/${currentCategory.value}/${currentIndex.value}`);
     const { category, index, post } = response.data;
-    suggestions.value[category].push(post);
+    // console.log('Received post:', post);
+    // console.log('Received category:', category);
+    // console.log('Received index:', index);
+    if (post && post.content) {
+      suggestions.value[category].push(post);
+    } else {
+      console.error('Invalid post data received:', response.data);
+    }
 
     currentIndex.value++;
     if (currentIndex.value >= 3) {

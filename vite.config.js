@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         '/api': {
-          target: 'https://linked-api.vercel.app/',
+          target: 'http://localhost:3000',
           changeOrigin: true,
           secure: false,
         },

@@ -13,7 +13,7 @@ import mongoose from 'mongoose';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-dotenv.config({ path: './.env' });
+dotenv.config({ path: '../.env' });
 //console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY);
 
 const app = express();
@@ -171,6 +171,7 @@ Call to Action: [call to action]`;
 }
 
 async function generateSinglePost(prompt) {
+  console.log('Generating single post with prompt:', prompt);
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",

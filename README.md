@@ -1,5 +1,21 @@
-# Vue 3 + Vite
+Content Strategy AI
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Getting Started
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+Running the Frontend
+
+To start the frontend development server:
+
+npm run dev
+
+Running the Backend
+
+To start the backend server:
+
+1. Navigate to the backend folder:
+   cd backend
+
+2. Run the server:
+   node index.js
+
+Make sure you have all the necessary dependencies installed before running these commands.
