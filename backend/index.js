@@ -217,14 +217,27 @@ app.get('/api/gpt/suggestions', authMiddleware, async (req, res) => {
     res.setHeader('Content-Type', 'text/plain');
     res.setHeader('Transfer-Encoding', 'chunked');
 
-    // Extract topics from user info
+    const linkedInBestPractices = `
+    LINKEDIN BEST PRACTICES:
+    1. Use repetitive storytelling to build your personal brand.
+    2. Create a compelling profile with a dynamic banner, clear tagline, and informative about section.
+    3. Use the featured section to showcase important content or offers.
+    4. Include a clear call-to-action (CTA) in your profile.
+    5. Make posts skimmable with bullet points, short sentences, and white space.
+    6. Use correct resolutions for photos (4:5 vertical or square) and videos.
+    7. Write engaging hooks to capture attention.
+    8. Show, don't tell - use visuals to demonstrate products or concepts.
+    9. Use a mix of content types: text, images, videos, and articles.
+    10. Consistently share content that aligns with your personal brand narratives.
+    `;
+
     const topicsPrompt = `Given the following user info, extract 9 relevant professional topics:
     ${user.info}
     
     Respond with a JSON array of 9 topics.`;
 
     const topicsCompletion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: "You are an AI assistant that extracts relevant professional topics from user information. Respond with a valid JSON array of 9 topics, without any additional formatting or explanation." },
         { role: "user", content: topicsPrompt }
@@ -235,7 +248,6 @@ app.get('/api/gpt/suggestions', authMiddleware, async (req, res) => {
     let topics;
     try {
       const topicsContent = topicsCompletion.choices[0].message.content.trim();
-      // Remove any potential markdown formatting
       const cleanedContent = topicsContent.replace(/^```json\n|\n```$/g, '');
       topics = JSON.parse(cleanedContent);
       console.log('Generated topics:', topics);
@@ -246,61 +258,38 @@ app.get('/api/gpt/suggestions', authMiddleware, async (req, res) => {
     }
 
     for (let i = 0; i < 9; i++) {
-      // Fetch relevant content from Pinecone based on the topic
-      const topicEmbedding = await openai.embeddings.create({
-        model: "text-embedding-3-small",
-        input: topics[i],
-      });
-
-      let relevantContent = '';
-      try {
-        const pineconeResponse = await axios.post(`${PINECONE_API_URL}/query`, {
-          vector: topicEmbedding.data[0].embedding,
-          topK: 3,
-          includeMetadata: true,
-          namespace: PINECONE_INDEX_NAME
-        }, {
-          headers: {
-            'Api-Key': PINECONE_API_KEY,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        relevantContent = pineconeResponse.data.matches
-          .map(match => match.metadata.content)
-          .join('\n\n');
-      } catch (error) {
-        console.error('Error querying Pinecone:', error);
-        // If Pinecone query fails, use an empty string for relevantContent
-      }
-
-      console.log("relevantContent", relevantContent);
+      console.log(`Processing topic ${i + 1}: ${topics[i]}`);
 
       const prompt = `Generate an engaging LinkedIn post for a user with the following information:
       Name: ${user.name}
       Info: ${user.info}
       Topic: ${topics[i]}
 
-      ${relevantContent ? `Consider the following relevant content for inspiration:
-      ${relevantContent}` : 'No specific content available for inspiration. Use your knowledge to create an engaging post.'}
+      Consider these LinkedIn best practices:
+      ${linkedInBestPractices}
+
+      IMPORTANT: Ensure that the post is specifically about the given topic. Do not default to discussing working parents unless it's directly relevant to the topic.
 
       The post should include:
-      1. Engaging content with appropriate emojis related to the given topic
-      2. 2-3 relevant hashtags (without # symbol)
-      3. A compelling call to action
+      1. An attention-grabbing hook directly related to the topic
+      2. Engaging content with appropriate emojis related to the given topic
+      3. Make the post skimmable using bullet points or short paragraphs
+      4. 2-3 relevant hashtags (without # symbol) specific to the topic
+      5. A compelling call to action related to the topic
 
       Format the response as a JSON object with the following structure:
       {
-        "content": "Post content with emojis",
+        "hook": "Attention-grabbing opening line",
+        "content": "Post content with emojis, bullet points, and short paragraphs",
         "hashtags": ["hashtag1", "hashtag2", "hashtag3"],
         "callToAction": "Compelling call to action"
       }
       Ensure the response is valid JSON. Do not include the # symbol in the hashtags array.`;
 
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-4o",
         messages: [
-          { role: "system", content: "You are a creative and engaging LinkedIn content creator. Respond with a JSON object, without any markdown formatting. Use emojis appropriately to make the content more appealing. Do not include # symbols in the hashtags." },
+          { role: "system", content: "You are a creative and engaging LinkedIn content creator. Your task is to generate diverse content strictly based on the given topic. Avoid defaulting to unrelated themes. Respond with a JSON object, without any markdown formatting. Use emojis appropriately to make the content more appealing. Do not include # symbols in the hashtags." },
           { role: "user", content: prompt }
         ],
         temperature: 0.8
@@ -456,7 +445,7 @@ app.post('/api/openai/generate', authMiddleware, async (req, res) => {
   try {
     const { prompt } = req.body;
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: "You are an AI assistant that enhances content for LinkedIn posts. Provide concise and engaging content that incorporates insights from the given relevant content." },
         { role: "user", content: prompt }
