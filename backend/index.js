@@ -15,6 +15,13 @@ import jwt from 'jsonwebtoken';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Initialize Express app
+const app = express();
+
+// Use middleware
+app.use(cors());
+app.use(express.json());
+
 // Instead, use Vercel's built-in environment variables
 const JWT_SECRET = process.env.JWT_SECRET;
 
