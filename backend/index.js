@@ -15,22 +15,8 @@ import jwt from 'jsonwebtoken';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-dotenv.config({ path: '../.env' });
-//console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY);
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// Add this line to increase the timeout
-app.use((req, res, next) => {
-  res.setTimeout(300000); // 5 minutes
-  next();
-});
-
-const PINECONE_API_URL = process.env.PINECONE_API_URL;
-const PINECONE_API_KEY = process.env.PINECONE_API_KEY;
-const PINECONE_INDEX_NAME = process.env.PINECONE_INDEX_NAME;
+// Instead, use Vercel's built-in environment variables
+const JWT_SECRET = process.env.JWT_SECRET;
 
 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('Connected to MongoDB'))
@@ -56,7 +42,11 @@ const authMiddleware = (req, res, next) => {
     return res.status(401).json({ error: 'No token, authorization denied' });
   }
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!JWT_SECRET) {
+      console.error('JWT_SECRET is not set');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+    const decoded = jwt.verify(token, JWT_SECRET);
     req.userId = decoded.userId;
     next();
   } catch (error) {
@@ -194,7 +184,14 @@ app.post('/api/login', async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    // Add a check for JWT_SECRET
+    if (!JWT_SECRET) {
+      console.error('JWT_SECRET is not set');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
+    const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '1h' });
     res.json({ token });
   } catch (error) {
     console.error('Error logging in:', error);
@@ -371,14 +368,19 @@ app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
-// Middleware to verify JWT token
+// Update the authenticateToken middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
   if (token == null) return res.sendStatus(401);
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+  if (!JWT_SECRET) {
+    console.error('JWT_SECRET is not set');
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return res.sendStatus(403);
     req.user = user;
     next();
