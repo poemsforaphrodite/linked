@@ -372,7 +372,7 @@ app.get('/api/profile/:userId', async (req, res) => {
 });
 
 app.get('/', (req, res) => {
-  res.send('Working');
+  res.send('meow meow');
 });
 
 const PORT = process.env.PORT || 3000;
