@@ -35,7 +35,8 @@ const handleSubmit = async () => {
     });
     router.push('/login');
   } catch (err) {
-    error.value = err.response?.data?.error || 'An error occurred';
+    console.error('Signup error:', err.response?.data);
+    error.value = err.response?.data?.error || 'An error occurred during signup';
   }
 };
 

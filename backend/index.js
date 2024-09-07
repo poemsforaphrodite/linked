@@ -26,10 +26,11 @@ app.use(express.json());
 // Instead, use Vercel's built-in environment variables
 const JWT_SECRET = process.env.JWT_SECRET;
 
-mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true, dbName: 'linked' })
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
+console.log('MONGODB_URI:', process.env.MONGODB_URI);
 // Update the UserSchema to include profile information
 const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
@@ -166,13 +167,16 @@ const LinkedInPostSchema = z.object({
 app.post('/api/signup', async (req, res) => {
   try {
     const { email, password, name, info } = req.body;
+    console.log('Received signup request:', { email, name, info }); // Log received data (exclude password for security)
+    
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({ email, password: hashedPassword, name, info });
     await user.save();
+    console.log('User created successfully:', user._id);
     res.status(201).json({ message: 'User created successfully' });
   } catch (error) {
-    console.error('Error signing up:', error);
-    res.status(500).json({ error: 'Error signing up' });
+    console.error('Error in signup process:', error);
+    res.status(500).json({ error: 'Error signing up', details: error.message });
   }
 });
 
@@ -242,7 +246,7 @@ app.get('/api/gpt/suggestions', authMiddleware, async (req, res) => {
     Respond with a JSON array of 9 topics.`;
 
     const topicsCompletion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "You are an AI assistant that extracts relevant professional topics from user information. Respond with a valid JSON array of 9 topics, without any additional formatting or explanation." },
         { role: "user", content: topicsPrompt }
@@ -292,7 +296,7 @@ app.get('/api/gpt/suggestions', authMiddleware, async (req, res) => {
       Ensure the response is valid JSON. Do not include the # symbol in the hashtags array.`;
 
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: "You are a creative and engaging LinkedIn content creator. Your task is to generate diverse content strictly based on the given topic. Avoid defaulting to unrelated themes. Respond with a JSON object, without any markdown formatting. Use emojis appropriately to make the content more appealing. Do not include # symbols in the hashtags." },
           { role: "user", content: prompt }
@@ -436,7 +440,7 @@ app.post('/api/pinecone/query', authMiddleware, async (req, res) => {
       vector,
       topK,
       includeMetadata,
-      namespace: PINECONE_INDEX_NAME
+      namespace: "linked"
     }, {
       headers: {
         'Api-Key': PINECONE_API_KEY,
@@ -455,7 +459,7 @@ app.post('/api/openai/generate', authMiddleware, async (req, res) => {
   try {
     const { prompt } = req.body;
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "You are an AI assistant that enhances content for LinkedIn posts. Provide concise and engaging content that incorporates insights from the given relevant content." },
         { role: "user", content: prompt }
